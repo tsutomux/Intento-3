@@ -1,4 +1,4 @@
-name: Crear App Xbox Cloud WebView2
+name: Crear App Xbox Cloud
 
 on:
   push:
@@ -12,283 +12,409 @@ jobs:
 
     steps:
 
-      - name: Crear estructura
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path AppFolder
-          New-Item -ItemType Directory -Force -Path AppFolder\Assets
+    - name: Configurar MSVC
+      uses: ilammy/msvc-dev-cmd@v1
 
-          $bytes = [Convert]::FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
+    - name: Instalar Visual Studio Build Tools
+      uses: microsoft/setup-msbuild@v2
 
-          [IO.File]::WriteAllBytes(
-            "AppFolder\Assets\logo.png",
-            $bytes
+    - name: Crear estructura
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path AppFolder
+        New-Item -ItemType Directory -Force -Path AppFolder\Assets
+        New-Item -ItemType Directory -Force -Path AppFolder\Properties
+
+        $bytes = [Convert]::FromBase64String(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        )
+
+        [IO.File]::WriteAllBytes(
+          "AppFolder\Assets\logo.png",
+          $bytes
+        )
+
+    - name: Crear proyecto UWP
+      shell: pwsh
+      run: |
+        @'
+<Project ToolsVersion="15.0"
+         DefaultTargets="Build"
+         xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+          <PropertyGroup>
+            <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+            <Platform Condition="'$(Platform)' == ''">x64</Platform>
+
+            <ProjectGuid>{A6E6A8D7-5C1A-4E9D-9A71-1C6F1A8C5521}</ProjectGuid>
+
+            <OutputType>AppContainerExe</OutputType>
+
+            <RootNamespace>XboxCloudApp</RootNamespace>
+            <AssemblyName>XboxCloudApp</AssemblyName>
+
+            <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
+
+            <TargetPlatformVersion>10.0.26100.0</TargetPlatformVersion>
+            <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+
+            <DefaultLanguage>es-ES</DefaultLanguage>
+
+            <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>
+
+            <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+
+            <Platforms>x86;x64;ARM64</Platforms>
+          </PropertyGroup>
+
+          <ItemGroup>
+
+            <ApplicationDefinition Include="App.xaml">
+              <Generator>MSBuild:Compile</Generator>
+              <SubType>Designer</SubType>
+            </ApplicationDefinition>
+
+            <Page Include="MainPage.xaml">
+              <Generator>MSBuild:Compile</Generator>
+              <SubType>Designer</SubType>
+            </Page>
+
+            <Compile Include="App.xaml.cs">
+              <DependentUpon>App.xaml</DependentUpon>
+            </Compile>
+
+            <Compile Include="MainPage.xaml.cs">
+              <DependentUpon>MainPage.xaml</DependentUpon>
+            </Compile>
+
+            <Compile Include="Properties\AssemblyInfo.cs" />
+
+            <Content Include="Assets\logo.png" />
+
+          </ItemGroup>
+
+          <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+          <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets"
+                  Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets')" />
+
+        </Project>
+        '@ | Set-Content AppFolder\XboxCloudApp.csproj -Encoding UTF8
+
+    - name: Crear App.xaml
+      shell: pwsh
+      run: |
+        @'
+        <Application
+            x:Class="XboxCloudApp.App"
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+            <Application.Resources>
+            </Application.Resources>
+
+        </Application>
+        '@ | Set-Content AppFolder\App.xaml -Encoding UTF8
+
+    - name: Crear App.xaml.cs
+      shell: pwsh
+      run: |
+        @'
+        using Windows.ApplicationModel.Activation;
+        using Windows.UI.Xaml;
+        using Windows.UI.Xaml.Controls;
+
+        namespace XboxCloudApp
+        {
+            sealed partial class App : Application
+            {
+                public App()
+                {
+                    InitializeComponent();
+                }
+
+                protected override void OnLaunched(
+                    LaunchActivatedEventArgs e)
+                {
+                    Frame rootFrame =
+                        Window.Current.Content as Frame;
+
+                    if (rootFrame == null)
+                    {
+                        rootFrame = new Frame();
+
+                        Window.Current.Content =
+                            rootFrame;
+                    }
+
+                    if (rootFrame.Content == null)
+                    {
+                        rootFrame.Navigate(
+                            typeof(MainPage));
+                    }
+
+                    Window.Current.Activate();
+                }
+            }
+        }
+        '@ | Set-Content AppFolder\App.xaml.cs -Encoding UTF8
+
+    - name: Crear MainPage.xaml
+      shell: pwsh
+      run: |
+        @'
+        <Page
+            x:Class="XboxCloudApp.MainPage"
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+            <Grid Background="Black">
+
+                <WebView
+                    x:Name="Browser"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch" />
+
+            </Grid>
+
+        </Page>
+        '@ | Set-Content AppFolder\MainPage.xaml -Encoding UTF8
+
+    - name: Crear MainPage.xaml.cs
+      shell: pwsh
+      run: |
+        @'
+        using System;
+        using Windows.UI.Xaml;
+        using Windows.UI.Xaml.Controls;
+
+        namespace XboxCloudApp
+        {
+            public sealed partial class MainPage : Page
+            {
+                public MainPage()
+                {
+                    InitializeComponent();
+
+                    Loaded += MainPage_Loaded;
+                }
+
+                private void MainPage_Loaded(
+                    object sender,
+                    RoutedEventArgs e)
+                {
+                    Browser.NavigationStarting +=
+                        Browser_NavigationStarting;
+
+                    Browser.NavigationCompleted +=
+                        Browser_NavigationCompleted;
+
+                    Browser.NewWindowRequested +=
+                        Browser_NewWindowRequested;
+
+                    Browser.Navigate(
+                        new Uri(
+                            "https://www.xbox.com/play"));
+                }
+
+                private void Browser_NavigationStarting(
+                    WebView sender,
+                    WebViewNavigationStartingEventArgs args)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "Navegando: " + args.Uri);
+                }
+
+                private void Browser_NavigationCompleted(
+                    WebView sender,
+                    WebViewNavigationCompletedEventArgs args)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "Navegación completada: " +
+                        args.IsSuccess);
+
+                    if (!args.IsSuccess)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            "Error WebView: " +
+                            args.WebErrorStatus);
+                    }
+                }
+
+                private void Browser_NewWindowRequested(
+                    WebView sender,
+                    WebViewNewWindowRequestedEventArgs args)
+                {
+                    args.Handled = true;
+
+                    if (args.Uri != null)
+                    {
+                        Browser.Navigate(
+                            new Uri(args.Uri));
+                    }
+                }
+            }
+        }
+        '@ | Set-Content AppFolder\MainPage.xaml.cs -Encoding UTF8
+
+    - name: Crear AssemblyInfo
+      shell: pwsh
+      run: |
+        @'
+        using System.Reflection;
+        using System.Runtime.InteropServices;
+
+        [assembly: AssemblyTitle("Xbox Cloud Gaming")]
+        [assembly: AssemblyDescription("Xbox Cloud Gaming")]
+        [assembly: AssemblyCompany("David")]
+        [assembly: AssemblyProduct("Xbox Cloud Gaming")]
+
+        [assembly: ComVisible(false)]
+
+        [assembly: AssemblyVersion("1.0.0.0")]
+        [assembly: AssemblyFileVersion("1.0.0.0")]
+        '@ | Set-Content AppFolder\Properties\AssemblyInfo.cs -Encoding UTF8
+
+    - name: Crear manifiesto Xbox
+      shell: pwsh
+      run: |
+        @'
+        <?xml version="1.0" encoding="utf-8"?>
+
+        <Package
+          xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+          xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10">
+
+          <Identity
+            Name="XboxCloudApp"
+            Publisher="CN=XboxCloudApp"
+            Version="1.0.0.0" />
+
+          <Properties>
+
+            <DisplayName>Xbox Cloud Gaming</DisplayName>
+
+            <PublisherDisplayName>David</PublisherDisplayName>
+
+            <Logo>Assets\logo.png</Logo>
+
+          </Properties>
+
+          <Dependencies>
+
+            <TargetDeviceFamily
+              Name="Windows.Xbox"
+              MinVersion="10.0.17763.0"
+              MaxVersionTested="10.0.26100.0" />
+
+          </Dependencies>
+
+          <Resources>
+
+            <Resource Language="es-ES" />
+
+          </Resources>
+
+          <Applications>
+
+            <Application
+              Id="App"
+              Executable="$targetnametoken$.exe"
+              EntryPoint="XboxCloudApp.App">
+
+              <uap:VisualElements
+                DisplayName="Xbox Cloud Gaming"
+                Description="Xbox Cloud Gaming"
+                BackgroundColor="#107C10"
+                Square150x150Logo="Assets\logo.png"
+                Square44x44Logo="Assets\logo.png" />
+
+            </Application>
+
+          </Applications>
+
+          <Capabilities>
+
+            <Capability
+              Name="internetClient" />
+
+          </Capabilities>
+
+        </Package>
+        '@ | Set-Content AppFolder\AppxManifest.xml -Encoding UTF8
+
+    - name: Compilar UWP
+      shell: pwsh
+      run: |
+        msbuild AppFolder\XboxCloudApp.csproj `
+          /p:Configuration=Release `
+          /p:Platform=x64 `
+          /p:AppxPackageSigningEnabled=false `
+          /p:UapAppxPackageBuildMode=SideloadOnly `
+          /p:AppxBundle=Never `
+          /verbosity:minimal
+
+    - name: Buscar AppX
+      shell: pwsh
+      run: |
+        Write-Host "===== APPX GENERADOS ====="
+
+        Get-ChildItem `
+          -Path AppFolder `
+          -Recurse `
+          -Include *.appx,*.msix |
+          Select-Object FullName
+
+    - name: Empaquetar AppX
+      shell: cmd
+      run: |
+        makeappx pack ^
+          /d AppFolder ^
+          /p XboxCloudApp.appx ^
+          /o
+
+    - name: Generar certificado
+      shell: pwsh
+      run: |
+        $cert = New-SelfSignedCertificate `
+          -Type Custom `
+          -Subject "CN=XboxCloudApp" `
+          -KeyUsage DigitalSignature `
+          -FriendlyName "XboxCloudApp" `
+          -CertStoreLocation "Cert:\CurrentUser\My" `
+          -TextExtension @(
+            "2.5.29.37={text}1.3.6.1.5.5.7.3.3",
+            "2.5.29.19={text}"
           )
 
-      - name: Crear proyecto
-        shell: pwsh
-        run: |
-          @'
-          <Project Sdk="Microsoft.NET.Sdk">
+        $pwd = ConvertTo-SecureString `
+          "1234" `
+          -Force `
+          -AsPlainText
 
-            <PropertyGroup>
-              <OutputType>WinExe</OutputType>
-              <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-              <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-              <RootNamespace>XboxCloudApp</RootNamespace>
-              <ApplicationManifest>AppxManifest.xml</ApplicationManifest>
-              <Platforms>x64</Platforms>
-              <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-            </PropertyGroup>
+        Export-PfxCertificate `
+          -Cert $cert `
+          -FilePath XboxCloudApp.pfx `
+          -Password $pwd
 
-            <ItemGroup>
-              <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.3916" />
-              <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />
-            </ItemGroup>
+        Export-Certificate `
+          -Cert $cert `
+          -FilePath XboxCloudApp.cer
 
-          </Project>
-          '@ | Set-Content AppFolder\XboxCloudApp.csproj -Encoding UTF8
+    - name: Firmar AppX
+      shell: cmd
+      run: |
+        signtool sign ^
+          /fd SHA256 ^
+          /a ^
+          /f XboxCloudApp.pfx ^
+          /p 1234 ^
+          XboxCloudApp.appx
 
-      - name: Crear App.xaml
-        shell: pwsh
-        run: |
-          @'
-          <Application
-              x:Class="XboxCloudApp.App"
-              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-
-              <Application.Resources>
-              </Application.Resources>
-
-          </Application>
-          '@ | Set-Content AppFolder\App.xaml -Encoding UTF8
-
-      - name: Crear App.xaml.cs
-        shell: pwsh
-        run: |
-          @'
-          using Windows.ApplicationModel.Activation;
-          using Windows.UI.Xaml;
-
-          namespace XboxCloudApp
-          {
-              sealed partial class App : Application
-              {
-                  public App()
-                  {
-                      InitializeComponent();
-                  }
-
-                  protected override void OnLaunched(
-                      LaunchActivatedEventArgs e)
-                  {
-                      var frame = Window.Current.Content as Windows.UI.Xaml.Controls.Frame;
-
-                      if (frame == null)
-                      {
-                          frame = new Windows.UI.Xaml.Controls.Frame();
-                          Window.Current.Content = frame;
-                      }
-
-                      if (frame.Content == null)
-                      {
-                          frame.Navigate(typeof(MainPage));
-                      }
-
-                      Window.Current.Activate();
-                  }
-              }
-          }
-          '@ | Set-Content AppFolder\App.xaml.cs -Encoding UTF8
-
-      - name: Crear MainPage.xaml
-        shell: pwsh
-        run: |
-          @'
-          <Page
-              x:Class="XboxCloudApp.MainPage"
-              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-
-              <Grid Background="Black">
-
-                  <WebView
-                      x:Name="Browser"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch" />
-
-              </Grid>
-
-          </Page>
-          '@ | Set-Content AppFolder\MainPage.xaml -Encoding UTF8
-
-      - name: Crear MainPage.xaml.cs
-        shell: pwsh
-        run: |
-          @'
-          using System;
-          using Windows.UI.Xaml;
-          using Windows.UI.Xaml.Controls;
-
-          namespace XboxCloudApp
-          {
-              public sealed partial class MainPage : Page
-              {
-                  public MainPage()
-                  {
-                      InitializeComponent();
-
-                      Loaded += MainPage_Loaded;
-                  }
-
-                  private void MainPage_Loaded(
-                      object sender,
-                      RoutedEventArgs e)
-                  {
-                      Browser.NavigationStarting += Browser_NavigationStarting;
-
-                      Browser.Navigate(
-                          new Uri("https://www.xbox.com/play"));
-                  }
-
-                  private void Browser_NavigationStarting(
-                      WebView sender,
-                      WebViewNavigationStartingEventArgs args)
-                  {
-                      System.Diagnostics.Debug.WriteLine(
-                          "Navegando a: " + args.Uri);
-                  }
-              }
-          }
-          '@ | Set-Content AppFolder\MainPage.xaml.cs -Encoding UTF8
-
-      - name: Crear manifiesto
-        shell: pwsh
-        run: |
-          @'
-          <?xml version="1.0" encoding="utf-8"?>
-
-          <Package
-            xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-            xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10">
-
-            <Identity
-              Name="XboxCloudApp"
-              Publisher="CN=XboxCloudApp"
-              Version="1.0.0.0" />
-
-            <Properties>
-              <DisplayName>Xbox Cloud Gaming</DisplayName>
-              <PublisherDisplayName>David</PublisherDisplayName>
-              <Logo>Assets\logo.png</Logo>
-            </Properties>
-
-            <Dependencies>
-              <TargetDeviceFamily
-                Name="Windows.Universal"
-                MinVersion="10.0.17763.0"
-                MaxVersionTested="10.0.26100.0" />
-            </Dependencies>
-
-            <Resources>
-              <Resource Language="es-ES" />
-            </Resources>
-
-            <Applications>
-
-              <Application
-                Id="App"
-                Executable="$targetnametoken$.exe"
-                EntryPoint="XboxCloudApp.App">
-
-                <uap:VisualElements
-                  DisplayName="Xbox Cloud Gaming"
-                  Description="Xbox Cloud Gaming"
-                  BackgroundColor="#107C10"
-                  Square150x150Logo="Assets\logo.png"
-                  Square44x44Logo="Assets\logo.png" />
-
-              </Application>
-
-            </Applications>
-
-            <Capabilities>
-              <Capability Name="internetClient" />
-            </Capabilities>
-
-          </Package>
-          '@ | Set-Content AppFolder\AppxManifest.xml -Encoding UTF8
-
-      - name: Instalar .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
-      - name: Restaurar proyecto
-        shell: pwsh
-        run: |
-          dotnet restore AppFolder\XboxCloudApp.csproj
-
-      - name: Compilar
-        shell: pwsh
-        run: |
-          dotnet build AppFolder\XboxCloudApp.csproj `
-            --configuration Release `
-            --runtime win-x64 `
-            --no-restore
-
-      - name: Mostrar resultado
-        shell: pwsh
-        run: |
-          Write-Host "===== RESULTADO ====="
-          Get-ChildItem AppFolder -Recurse |
-            Select-Object FullName
-
-      - name: Empaquetar AppX
-        shell: cmd
-        run: |
-          makeappx pack /d AppFolder /p XboxCloudApp.appx /o
-
-      - name: Generar certificado
-        shell: pwsh
-        run: |
-          $cert = New-SelfSignedCertificate `
-            -Type Custom `
-            -Subject "CN=XboxCloudApp" `
-            -KeyUsage DigitalSignature `
-            -FriendlyName "XboxCloudApp" `
-            -CertStoreLocation "Cert:\CurrentUser\My" `
-            -TextExtension @(
-              "2.5.29.37={text}1.3.6.1.5.5.7.3.3",
-              "2.5.29.19={text}"
-            )
-
-          $pwd = ConvertTo-SecureString "1234" -Force -AsPlainText
-
-          Export-PfxCertificate `
-            -Cert $cert `
-            -FilePath XboxCloudApp.pfx `
-            -Password $pwd
-
-          Export-Certificate `
-            -Cert $cert `
-            -FilePath XboxCloudApp.cer
-
-      - name: Firmar AppX
-        shell: cmd
-        run: |
-          signtool sign ^
-            /fd SHA256 ^
-            /a ^
-            /f XboxCloudApp.pfx ^
-            /p 1234 ^
-            XboxCloudApp.appx
-
-      - name: Subir AppX
-        uses: actions/upload-artifact@v4
-        with:
-          name: Xbox-App-WebView
-          path: |
-            XboxCloudApp.appx
-            XboxCloudApp.cer
+    - name: Subir aplicación
+      uses: actions/upload-artifact@v4
+      with:
+        name: Xbox-App-WebView
+        path: |
+          XboxCloudApp.appx
+          XboxCloudApp.cer
