@@ -21,7 +21,7 @@ jobs:
         $bytes = [Convert]::FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
         [IO.File]::WriteAllBytes("AppFolder\Assets\logo.png", $bytes)
         
-        # Crear el manifiesto de la aplicación web
+        # Crear el manifiesto de la aplicación web con el nombre correcto (AppxManifest.xml)
         $manifest = @"
         <?xml version="1.0" encoding="utf-8"?>
         <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10">
@@ -52,7 +52,7 @@ jobs:
           </Capabilities>
         </Package>
         "@
-        Set-Content -Path "AppFolder\Package.appxmanifest" -Value $manifest -Encoding UTF8
+        Set-Content -Path "AppFolder\AppxManifest.xml" -Value $manifest -Encoding UTF8
 
     - name: Empaquetar App
       run: makeappx pack /d AppFolder /p XboxCloudApp.appx
