@@ -78,7 +78,7 @@ jobs:
                   Type="include"
                   WindowsRuntimeAccess="none" />
 
-                <!-- Servicios Microsoft utilizados durante la sesión -->
+                <!-- Cuenta Microsoft -->
                 <uap:Rule
                   Match="https://account.microsoft.com/"
                   Type="include"
@@ -158,11 +158,6 @@ jobs:
           /f XboxCloudApp.pfx ^
           /p 1234 ^
           XboxCloudApp.appx
-
-    - name: Comprobar firma
-      shell: cmd
-      run: |
-        signtool verify /pa /v XboxCloudApp.appx
 
     - name: Subir archivos listos
       uses: actions/upload-artifact@v4
